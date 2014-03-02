@@ -75,7 +75,7 @@ playGames(NumOfGames,ShowFlag,FirstPlayerStrategy,SecondPlayerStrategy,
       NewDraws is NumOfDraws + 1)
   ),
   playGames(NewNumOfGames,ShowFlag,FirstPlayerStrategy,SecondPlayerStrategy,
-           NewGameLengths,NewDraws,NewBlueWins,NewRedWins).
+           NewGameLengths,NewBlueWins,NewRedWins,NewDraws).
 
 
 %random_move(Alive, OtherPlayerAlive, Move) :-
@@ -167,16 +167,35 @@ land_grab('r', [AliveBlues, AliveReds], [AliveBlues, NewAliveReds], Move) :-
  alter_board(Move, AliveReds, NewAliveReds).
 
 %%%% Minimax %%%%
-minimax_move(AliveBlues, AliveReds, Move).
 
+minimax_score(Move,[AliveMe,AliveOther],Score):-
+  alter_board(Move,AliveMe,AliveMe2),
+  next_generation([AliveMe2,AliveOther],[Me3,Other3]),
+  land_grab_move(Other3,Me3,OtherMove),
+  alter_board(OtherMove,Other3,Other4),
+  next_generation([Me3,Other4],[FinalMe,FinalOther]),
+  length(FinalMe,MyScore),
+  length(FinalOther,OtherScore),
+  Score is MyScore - OtherScore.
 
-minimax('b', [AliveBlues, AliveReds], [NewAliveBlues, AliveReds], Move):-
+minimax_move(Alive, OtherPlayerAlive, Move) :-
+  findall(([A,B,MA,MB],Score),(member([A,B],Alive),
+                               neighbour_position(A,B,[MA,MB]),
+                               \+member([MA,MB],Alive),
+                               \+member([MA,MB],OtherPlayerAlive),
+                               minimax_score([A,B,MA,MB],[Alive,OtherPlayerAlive],Score)),
+          Move_Score_Pair),
+  findall(Score, member((_,Score),Move_Score_Pair), Score_List),
+  max_list(Score_List,Max_Score),
+  member((Move,Max_Score),Move_Score_Pair).
+
+minimax('b', [AliveBlues, AliveReds], [NewAliveBlues, AliveReds], Move) :-
  minimax_move(AliveBlues, AliveReds, Move),
  alter_board(Move, AliveBlues, NewAliveBlues).
 
-minimax('r', [AliveBlues, AliveReds], [NewAliveBlues, AliveReds], Move):-
- minimax_move(AliveBlues, AliveReds, Move),
- alter_board(Move, AliveBlues, NewAliveBlues).
+minimax('r', [AliveBlues, AliveReds], [AliveBlues, NewAliveReds], Move) :-
+ minimax_move(AliveReds, AliveBlues, Move),
+ alter_board(Move, AliveReds, NewAliveReds).
 
 
 
