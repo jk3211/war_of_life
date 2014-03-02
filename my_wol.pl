@@ -35,7 +35,7 @@ max(A,B,B):- B > A.
 
 test_strategy(N,FirstPlayerStrategy,SecondPlayerStrategy):-
   statistics(walltime, [Begin,_]),
-  playGames(N,quiet,FirstPlayerStrategy,SecondPlayerStrategy,[],0,0,0),
+  playGames(N,verbose,FirstPlayerStrategy,SecondPlayerStrategy,[],0,0,0),
   statistics(walltime, [End,_]),
   AvgGameTime is (End-Begin)/N,
   format('Average game time: ~d~n', AvgGameTime).
@@ -90,88 +90,73 @@ playGames(NumOfGames,ShowFlag,FirstPlayerStrategy,SecondPlayerStrategy,
 % nth1(Pos, PossMoves, Move).
 
 %%%% bloodlust %%%%
-enemy_score('b',Move,[AliveBlues,AliveReds],Score):-
-  alter_board(Move,AliveBlues,NewAliveBlues),
-  next_generation([NewAliveBlues,AliveReds],[_,FinalReds]),
-  length(FinalReds,Score).
-enemy_score('r',Move,[AliveReds,AliveBlues],Score):-
-  alter_board(Move,AliveReds,NewAliveReds),
-  next_generation([AliveBlues,NewAliveReds],[FinalBlues,_]),
-  length(FinalBlues,Score).
+enemy_score(Move,[AliveMe,AliveOther],Score):-
+  alter_board(Move,AliveMe,AliveMe2),
+  next_generation([AliveMe2,AliveOther],[_,FinalOther]),
+  length(FinalOther,Score).
 
-bloodlust_move(Colour,Alive,OtherPlayerAlive,Move)
-  :- findall(([A,B,MA,MB],Score),(member([A,B],Alive),
-                                  neighbour_position(A,B,[MA,MB]),
-                                  \+member([MA,MB],Alive),
-                                  \+member([MA,MB],OtherPlayerAlive),
-                                  enemy_score(Colour,[A,B,MA,MB],[Alive,OtherPlayerAlive],Score)),
-             Move_Score_Pair),
-     findall(Score, member((_,Score),Move_Score_Pair), Score_List),
-     min_list(Score_List,Min_Score),
-     member((Move,Min_Score),Move_Score_Pair).
+bloodlust_move(Alive,OtherPlayerAlive,Move):-
+  findall(([A,B,MA,MB],Score),(member([A,B],Alive),
+                               neighbour_position(A,B,[MA,MB]),
+                               \+member([MA,MB],Alive),
+                               \+member([MA,MB],OtherPlayerAlive),
+                               enemy_score([A,B,MA,MB],[Alive,OtherPlayerAlive],Score)),
+           Move_Score_Pair),
+  findall(Score, member((_,Score),Move_Score_Pair), Score_List),
+  min_list(Score_List,Min_Score),
+  member((Move,Min_Score),Move_Score_Pair).
   
-bloodlust('b', [AliveBlues, AliveReds], [NewAliveBlues, AliveReds], Move):-
- bloodlust_move('b', AliveBlues, AliveReds, Move),
+bloodlust('b', [AliveBlues, AliveReds], [NewAliveBlues, AliveReds], Move) :-
+ bloodlust_move(AliveBlues, AliveReds, Move),
  alter_board(Move, AliveBlues, NewAliveBlues).
 
-bloodlust('r', [AliveBlues, AliveReds], [NewAliveBlues, AliveReds], Move):-
- bloodlust_move('r', AliveBlues, AliveReds, Move),
- alter_board(Move, AliveBlues, NewAliveBlues).
+bloodlust('r', [AliveBlues, AliveReds], [AliveBlues, NewAliveReds], Move) :-
+ bloodlust_move(AliveReds, AliveBlues, Move),
+ alter_board(Move, AliveReds, NewAliveReds).
 
 %%%% Self Preservation %%%%
-my_score('b',Move,[AliveBlues,AliveReds],Score):-
-  alter_board(Move,AliveBlues,NewAliveBlues),
-  next_generation([NewAliveBlues,AliveReds],[FinalBlues,_]),
-  length(FinalBlues,Score).
-my_score('r',Move,[AliveReds,AliveBlues],Score):-
-  alter_board(Move,AliveReds,NewAliveReds),
-  next_generation([AliveBlues,NewAliveReds],[_,FinalReds]),
-  length(FinalReds,Score).
+my_score(Move,[AliveMe,AliveOther],Score):-
+  alter_board(Move,AliveMe,AliveMe2),
+  next_generation([AliveMe2,AliveOther],[FinalMe,_]),
+  length(FinalMe,Score).
 
-self_preservation_move(Colour,Alive,OtherPlayerAlive,Move)
-  :- findall(([A,B,MA,MB],Score),(member([A,B],Alive),
-                                  neighbour_position(A,B,[MA,MB]),
-                                  \+member([MA,MB],Alive),
-                                  \+member([MA,MB],OtherPlayerAlive),
-                                  my_score(Colour,[A,B,MA,MB],[Alive,OtherPlayerAlive],Score)),
-             Move_Score_Pair),
-     findall(Score, member((_,Score),Move_Score_Pair), Score_List),
-     max_list(Score_List,Max_Score),
-     member((Move,Max_Score),Move_Score_Pair).
-
-self_preservation('b', [AliveBlues, AliveReds], [NewAliveBlues, AliveReds], Move):-
- self_preservation_move('b', AliveBlues, AliveReds, Move),
+self_preservation_move(Alive,OtherPlayerAlive,Move):-
+  findall(([A,B,MA,MB],Score),(member([A,B],Alive),
+                               neighbour_position(A,B,[MA,MB]),
+                               \+member([MA,MB],Alive),
+                               \+member([MA,MB],OtherPlayerAlive),
+                               my_score([A,B,MA,MB],[Alive,OtherPlayerAlive],Score)),
+          Move_Score_Pair),
+  findall(Score, member((_,Score),Move_Score_Pair), Score_List),
+  max_list(Score_List,Max_Score),
+  member((Move,Max_Score),Move_Score_Pair).
+  
+self_preservation('b', [AliveBlues, AliveReds], [NewAliveBlues, AliveReds], Move) :-
+ self_preservation_move(AliveBlues, AliveReds, Move),
  alter_board(Move, AliveBlues, NewAliveBlues).
 
-self_preservation('r', [AliveBlues, AliveReds], [NewAliveBlues, AliveReds], Move):-
- self_preservation_move('r', AliveBlues, AliveReds, Move),
- alter_board(Move, AliveBlues, NewAliveBlues).
+self_preservation('r', [AliveBlues, AliveReds], [AliveBlues, NewAliveReds], Move) :-
+ self_preservation_move(AliveReds, AliveBlues, Move),
+ alter_board(Move, AliveReds, NewAliveReds).
 
 %%%% Land Grab %%%%
+land_grab_score(Move,[AliveMe,AliveOther],Score):-
+  alter_board(Move,AliveMe,AliveMe2),
+  next_generation([AliveMe2,AliveOther],[FinalMe,FinalOther]),
+  length(FinalMe,MyScore),
+  length(FinalOther,OtherScore),
+  Score is MyScore - OtherScore.
 
-land_grab_move(Alive, OtherPlayerAlive, BestMove) :-
- findall([A,B,MA,MB],(member([A,B], Alive),
-                      neighbour_position(A,B,[MA,MB]),
-	              \+member([MA,MB],Alive),
-	              \+member([MA,MB],OtherPlayerAlive)),
-	 [Move|OtherPossMoves]),
- single_move_max(Alive, OtherPlayerAlive, Move, Max),
- best_land_grab_move(Alive, OtherPlayerAlive,OtherPossMoves, Max,Move,BestMove).
-
-best_land_grab_move(_, _, [], _, OutMove, OutMove).
-best_land_grab_move(Alive, OtherPlayerAlive, [PossMove|OtherMoves], Max, InMove, OutMove) :-
-  single_move_max(Alive, OtherPlayerAlive, PossMove, PossMax),
-  max(PossMax, Max, NewMax),
-  (NewMax =:= PossMax -> NewInMove = PossMove ; NewInMove = InMove),
-  best_land_grab_move(Alive, OtherPlayerAlive, OtherMoves, NewMax, NewInMove, OutMove).
-  
-single_move_max(Alive, OtherPlayerAlive, Move , Max) :-
-  alter_board(Move, Alive, NewAlive),
-  next_generation([NewAlive, OtherPlayerAlive], [NewAlive2, NewOtherPlayerAlive]),
-  length(NewAlive2 , NewAlive2Length),
-  length(NewOtherPlayerAlive , NewOtherPlayerAliveLength),
-  Max is NewAlive2Length - NewOtherPlayerAliveLength.
-
+land_grab_move(Alive, OtherPlayerAlive, Move) :-
+  findall(([A,B,MA,MB],Score),(member([A,B],Alive),
+                               neighbour_position(A,B,[MA,MB]),
+                               \+member([MA,MB],Alive),
+                               \+member([MA,MB],OtherPlayerAlive),
+                               land_grab_score([A,B,MA,MB],[Alive,OtherPlayerAlive],Score)),
+          Move_Score_Pair),
+  findall(Score, member((_,Score),Move_Score_Pair), Score_List),
+  max_list(Score_List,Max_Score),
+  member((Move,Max_Score),Move_Score_Pair).
 
 land_grab('b', [AliveBlues, AliveReds], [NewAliveBlues, AliveReds], Move) :-
  land_grab_move(AliveBlues, AliveReds, Move),
