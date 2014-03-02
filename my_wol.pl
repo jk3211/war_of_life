@@ -30,15 +30,13 @@ list_min([L|Ls], Min0, Min) :-
     Min1 is min(L, Min0),
     list_min(Ls, Min1, Min).
 
-max(A,B,A):- A >= B.
-max(A,B,B):- B > A.
 
 test_strategy(N,FirstPlayerStrategy,SecondPlayerStrategy):-
   statistics(walltime, [Begin,_]),
-  playGames(N,verbose,FirstPlayerStrategy,SecondPlayerStrategy,[],0,0,0),
+  playGames(N,quiet,FirstPlayerStrategy,SecondPlayerStrategy,[],0,0,0),
   statistics(walltime, [End,_]),
-  AvgGameTime is (End-Begin)/N,
-  format('Average game time: ~d~n', AvgGameTime).
+  AvgGameTime is (End-Begin)/(N*1000),
+  format('Average game time: ~3f~n', AvgGameTime).
 
 % playGames play games N times, and prints out the number of draws,
 % number of wins for blue player, number of wins for red player,
